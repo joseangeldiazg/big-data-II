@@ -2,7 +2,7 @@
 
 ## 1 Introducción
 
-En esta práctica usaremos PIG para realizar consultas en un entorno distribuido Hadoop. PIG es un lenguaje creado para flujo de datos que permite especificar como captar y leer estos flujos. Es util para: 
+En esta práctica usaremos PIG para realizar consultas en un entorno distribuido Hadoop. PIG es un lenguaje creado para flujo de datos que permite especificar como captar y leer estos flujos. Es útil para: 
 
 * ETL.
 * Analizar datos en bruto.
@@ -45,11 +45,11 @@ Para ver que todo ha funcionado correctamente:
 
 ## 4 Diseño de un experimento de datos
 
-En este punto, realizaremos las consultas sobre la base de datos para ello, nos pondremos en lugar de un hipótetico científico de datos para obtener información acerca de las quejas de los usuarios.
+En este punto, realizaremos las consultas sobre la base de datos para ello, nos pondremos en lugar de un hipotético científico de datos para obtener información acerca de las quejas de los usuarios.
 
 ### Proceso exploratorio
 
-Somos nuevos en la compañia y se nos ha contratado para analizar si las quejas de los usuarios están siendo contestadas a tiempo o no y ver como mejorar este sector de la compañia, por tanto la primera pregunta a resolver sería:
+Somos nuevos en la compañía y se nos ha contratado para analizar si las quejas de los usuarios están siendo contestadas a tiempo o no y ver como mejorar este sector de la compañia, por tanto la primera pregunta a resolver sería:
 
 **¿Cuales son los posibles valores del campo TimelyResponse?**
 
@@ -65,7 +65,7 @@ La salida de la consulta es la siguiente:
 ![Salida de la consulta](imagenes/1.png)
 
 
-Parece que no hemos tenido buenos resultados ya que a pesar de lo que podriamos pensar hay muchos tipos de contenido en esta tabla en lugar de respuestas a la pregunta si se ha respondido en tiempo. Vamos a intentar obtener aquellos registros más comunes, es decir, que se repitan más de 100 veces a ver si así localizamos la información buscada. Para ello, debemos responder a la pregunta:
+Parece que no hemos tenido buenos resultados ya que a pesar de lo que podríamos pensar hay muchos tipos de contenido en esta tabla en lugar de respuestas a la pregunta si se ha respondido en tiempo. Vamos a intentar obtener aquellos registros más comunes, es decir, que se repitan más de 100 veces a ver si así localizamos la información buscada. Para ello, debemos responder a la pregunta:
 
 **¿Cuales son los valores más comunes del campo TimelyResponse?**
 
@@ -78,9 +78,9 @@ Para esta consulta debemos hacer varias conjuntas:
 	
 ![Salida de la consulta](imagenes/2.png)
 
-Ahora podemos comprobar como si que hemos tenido efecto y tenemos ante nosotros las categorias más usadas dentro de esta column, lo que nos lleva a saber que la mayoria de las quejas se cierran en tiempo, aunque hay otras que se cierran con ciertas caracteristicas especiales como **Closed With Monetary Relief**. 
+Ahora podemos comprobar como si que hemos tenido efecto y tenemos ante nosotros las categorías más usadas dentro de esta columna, lo que nos lleva a saber que la mayoría de las quejas se cierran en tiempo, aunque hay otras que se cierran con ciertas características especiales como **Closed With Monetary Relief**. 
 
-Por último, localizado este ítem vamos a trazar un paralelismo entre los casos cerrados con **Closed With Monetary Relief** y las fechas de cierre, para tratar de localizar si hay mas quejas en periodos como despues de navidad que buscan recibir el dinero de las compras de navidad y por tanto se generan quejas falsas.
+Por último, localizado este ítem vamos a trazar un paralelismo entre los casos cerrados con **Closed With Monetary Relief** y las fechas de cierre, para tratar de localizar si hay más quejas en periodos como después de navidad que buscan recibir el dinero de las compras de navidad y por tanto se generan quejas falsas.
 
 Para realizar esto:
 
@@ -91,6 +91,8 @@ Para realizar esto:
 	filtro_final = FILTER cuenta_fechas BY total > 3;
 	ordenados = order filtro_final by total desc;
 	dump ordenados;
+	
+La salida de esta consulta sería:	
 	
 ![Salida de la consulta](imagenes/3.png)	
 
