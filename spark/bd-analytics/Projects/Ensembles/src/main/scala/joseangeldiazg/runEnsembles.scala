@@ -11,7 +11,9 @@ import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 import org.apache.spark.mllib.classification.kNN_IS.kNN_IS
 import utils.keel.KeelParser
 import scala.collection.mutable.ListBuffer
-
+import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
+import org.apache.spark.mllib.util.MLUtils
+import java.io._
 
 object runEnsembles {
 
@@ -27,8 +29,8 @@ object runEnsembles {
     //Load train and test
     
     val converter = new KeelParser(sc, "hdfs://hadoop-master/user/spark/datasets/ECBDL14_mbd/ecbdl14.header")
-    val train = sc.textFile("hdfs://hadoop-master/user/spark/datasets/ECBDL14_mbd/ecbdl14tra.data", 200).map(line => converter.parserToLabeledPoint(line)).persist
-    val test  = sc.textFile("hdfs://hadoop-master/user/spark/datasets/ECBDL14_mbd/ecbdl14tst.data", 200).map(line => converter.parserToLabeledPoint(line)).persist
+    val train = sc.textFile("hdfs://hadoop-master/user/spark/datasets/ECBDL14_mbd/ecbdl14tra.data", 150).map(line => converter.parserToLabeledPoint(line)).persist
+    val test  = sc.textFile("hdfs://hadoop-master/user/spark/datasets/ECBDL14_mbd/ecbdl14tst.data", 150).map(line => converter.parserToLabeledPoint(line)).persist
 
     //Class balance
 
@@ -45,7 +47,7 @@ object runEnsembles {
     var maxBins = 32
 
     val modelDT = DecisionTree.trainClassifier(train, numClasses, categoricalFeaturesInfo, impurity, maxDepth, maxBins)
-    val predictionsDT = modelDT.predict(test)    
+    //val predictionsDT = modelDT.predict(test)    
     
     // Evaluate model on test instances and compute test error
     val labelAndPredsDT = test.map { point =>
@@ -69,7 +71,7 @@ object runEnsembles {
     maxBins = 32
 
     val modelRF = RandomForest.trainClassifier(train, numClasses, categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins)
-    val predictionsDT = modeRF.predict(test)    
+    //val predictionsrf = modelRF.predict(test)    
     
     
     // Evaluate model on test instances and compute test error
@@ -82,62 +84,56 @@ object runEnsembles {
     val testAccRF = 1 - labelAndPredsRF.filter(r => r._1 != r._2).count.toDouble / test.count()
     println(s"Test Accuracy RF= $testAccRF")
 
-    // KNN
+    // NAIVE BAYES
     
-    val k= 5
-    val dist=2
-    val numClass=converter.getNumClassFromHeader()
-    val numFeatures=converter.getNumFeaturesFromHeader()
-    val numPartitionMap=10
-    val numReduces=2
-    val numIterations=1
-    val maxWeight=5
-    
-    val knn = kNN_IS.setup(train, test, k, dist, numClass, numFeatures, numPartitionMap, numReduces, numIterations, maxWeight)
-    val predictions= knn.predict(sc)
+    val model = NaiveBayes.train(train, lambda = 1.0, modelType = "multinomial")
+    val predictionAndLabel = test.map(p => (model.predict(p.features), p.label))
+    val accuracy = 1.0 * predictionAndLabel.filter(x => x._1 == x._2).count() / test.count()
+
     
     
     //Obtenemos las métricas para cada clasificador
     
-    val metricsKNN = new MulticlassMetrics(predictions)
-    val precision = metricsKNN.precision
-    val cm = metricsKNN.confusionMatrix
-    val tprKNN = metricsKNN.truePositiveRate(1.0)
-    val tnrKNN = metricsKNN.truePositiveRate(0.0)
-    val TPRxTNR_KNN=tprKNN*tnrKNN
-    val binaryMetricsKNN = new BinaryClassificationMetrics(predictions)
-    val AUC = binaryMetricsKNN.areaUnderROC
+    val metricsNB = new MulticlassMetrics(predictionAndLabel)
+    val precision = metricsNB.precision
+    val cm = metricsNB.confusionMatrix
+    val tprNB = metricsNB.truePositiveRate(1.0)
+    val tnrNB = metricsNB.truePositiveRate(0.0)
+    val TPRxTNR_KNN=tprNB*tnrNB
+    val binaryMetricsNB = new BinaryClassificationMetrics(predictionAndLabel)
+    val AUC = binaryMetricsNB.areaUnderROC
     
     
-    val metricsRF = new MulticlassMetrics(predictionsRF)
+    val metricsRF = new MulticlassMetrics(labelAndPredsRF)
     val precisionRF = metricsRF.precision
     val cmRF = metricsRF.confusionMatrix
     val tprRF= metricsRF.truePositiveRate(1.0)
     val tnrRF = metricsRF.truePositiveRate(0.0)
     val TPRxTNR_RF=tprRF*tnrRF
-    val binaryMetricsRF = new BinaryClassificationMetrics(predictionsRF)
+    val binaryMetricsRF = new BinaryClassificationMetrics(labelAndPredsRF)
     val AUC_RF = binaryMetricsRF.areaUnderROC
     
-    val metricsDT = new MulticlassMetrics(predictionsDT)
+    
+    val metricsDT = new MulticlassMetrics(labelAndPredsDT)
     val precisionDT = metricsDT.precision
     val cmDT = metricsDT.confusionMatrix
     val tprDT= metricsDT.truePositiveRate(1.0)
     val tnrDT = metricsDT.truePositiveRate(0.0)
     val TPRxTNR_DT=tprDT*tnrDT
-    val binaryMetricsDT = new BinaryClassificationMetrics(predictionsDT)
+    val binaryMetricsDT = new BinaryClassificationMetrics(labelAndPredsDT)
     val AUC_DT = binaryMetricsDT.areaUnderROC
 
     //Write Results
-    val writer = new PrintWriter("/home/user/results.txt")
+    val writer = new PrintWriter(new File("results.txt"))
     writer.write(
-      "PrecisionKNN: " + precision + "\n" +
-      "Confusion Matrix KNN " + cm + "\n" + 
+      "PrecisionNB: " + precision + "\n" +
+      "Confusion Matrix NB " + cm + "\n" + 
       "PrecisionRF: " + precisionRF + "\n" +
       "Confusion Matrix RF " + cmRF + "\n" +
       "PrecisionDT: " + precisionDT + "\n" +
       "Confusion Matrix DT " + cmDT + "\n" +
-      "TPRXTNR KNN: " + TPRxTNR_KNN + "\n" +
-      "AUC KNN " + AUC + "\n" +
+      "TPRXTNR NB: " + TPRxTNR_KNN + "\n" +
+      "AUC NB " + AUC + "\n" +
       "TPRXTNR RF: " + TPRxTNR_RF + "\n" +
       "AUC RF " + AUC_RF + "\n" +
       "TPRXTNR DT: " + TPRxTNR_DT+ "\n" +
